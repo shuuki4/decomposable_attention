@@ -48,7 +48,7 @@ class PairSequenceData:
         :return: next data dict of batch_size amount data
         """
         def _normalize_length(_data, max_length):
-            return _data + [0] * (max_length - len(_data))
+            return _data + [self.PAD] * (max_length - len(_data))
 
         seq1_data, seq1_lengths, seq2_data, seq2_lengths, labels = \
             [], [], [], [], []

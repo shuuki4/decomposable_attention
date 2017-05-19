@@ -31,17 +31,17 @@ class DecomposableAttentionModel:
             )
 
         with tf.name_scope('attend'):
-            sentence1_attend, sentence2_attend, attention_weights = decom_ops.attend(
-                sentence1_rnned, sentence2_rnned, is_training=is_training)
+            sentence1_attend, sentence2_attend, att_weights1, att_weights2 = \
+                decom_ops.attend(
+                    sentence1_rnned, sentence2_rnned,
+                    sentence1_lengths, sentence2_lengths,
+                    is_training=is_training
+                )
+
         with tf.name_scope('compare'):
             compare1, compare2 = decom_ops.compare(
                 sentence1_embed, sentence2_embed,
                 sentence1_attend, sentence2_attend, is_training=is_training)
-
-        tf.summary.histogram('attention_weight', attention_weights)
-        tf.summary.image('attention_viz',
-                         tf.expand_dims(attention_weights, -1) * 255.0 / \
-                         (tf.reduce_max(attention_weights) - tf.reduce_min(attention_weights)))
 
         compare_dim = self.config['rnn']['state_size'] * 2
         num_category = self.config['data']['num_category']
@@ -53,6 +53,14 @@ class DecomposableAttentionModel:
                 mapper_num_layers=[compare_dim//2, num_category],
                 is_training=is_training
             )
+
+        with tf.name_scope('summary_viz'):
+            tf.summary.histogram('attention_weight_1', att_weights1)
+            tf.summary.histogram('attention_weight_2', att_weights2)
+            tf.summary.image('attention_viz_1',
+                             tf.expand_dims(att_weights1, -1) * 255.0)
+            tf.summary.image('attention_viz_2',
+                             tf.expand_dims(att_weights2, -1) * 255.0)
 
         self.loss = self._build_loss(result, labels)
         self.inference = tf.argmax(tf.nn.softmax(result), axis=-1)
@@ -157,8 +165,9 @@ class DecomposableAttentionModel:
                     name='cross_entropy'
                 )
             )
-            l2_loss = tf.add_n(
-                tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
+            #l2_loss = tf.add_n(
+            #    tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
+            l2_loss = 0.0
             loss = cross_entropy + l2_loss
 
             tf.summary.scalar('total_loss', loss)

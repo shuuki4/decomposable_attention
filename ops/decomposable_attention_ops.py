@@ -2,7 +2,26 @@ import tensorflow as tf
 from ops.layer_util import MLP
 
 
+def _masked_softmax(logits, lengths):
+    """
+    Softmax on last axis with proper mask
+    """
+    eps = 1e-12
+    sequence_mask = tf.expand_dims(
+        tf.sequence_mask(
+            lengths, maxlen=tf.shape(logits)[-1], dtype=tf.float32),
+        dim=1
+    )
+
+    masked_logit_exp = tf.exp(logits) * sequence_mask
+    logit_sum = tf.reduce_sum(masked_logit_exp, axis=-1, keep_dims=True)
+
+    probs = masked_logit_exp / logit_sum
+    return probs
+
+
 def attend(input1, input2,
+           length1, length2,
            attention_mapper_num_layers=None,
            attention_mapper_l2_coef=0.003,
            is_training=True):
@@ -11,6 +30,8 @@ def attend(input1, input2,
      `[batch_size, max_time1, embedding_dim]'
     :param input2: second sentence representation of shape
      `[batch_size, max_time2, embedding_dim]`
+    :param length1: lengths of first sentence
+    :param length2: lengths of second sentence
     :param attention_mapper_num_layers: size of hidden layers
      for sentence_representation-to-attention mapping mlp
     :param attention_mapper_l2_coef: coefficent for attention
@@ -41,14 +62,13 @@ def attend(input1, input2,
         tf.transpose(att_map2, [0, 2, 1])
     )  # [batch_size, input1_length, input2_length]
 
-    input1_weights = tf.nn.softmax(att_inner_product, dim=1)
-    input2_weights = tf.nn.softmax(att_inner_product, dim=2)
-    output1 = tf.matmul(
-        tf.transpose(input1_weights, [0, 2, 1]), input1)
-    output2 = tf.matmul(
-        input2_weights, input2)
+    input1_weights = _masked_softmax(
+        tf.transpose(att_inner_product, [0, 2, 1]), length1)
+    input2_weights = _masked_softmax(att_inner_product, length2)
+    output1 = tf.matmul(input1_weights, input1)
+    output2 = tf.matmul(input2_weights, input2)
 
-    return output1, output2, att_inner_product
+    return output1, output2, input1_weights, input2_weights
 
 
 def compare(orig_input1, orig_input2, attend_input1, attend_input2,
@@ -107,7 +127,8 @@ def aggregate(compare1, compare2,
       '[batch_size, max_time1, compare_dim]`
     :param compare2: compare result2 from compare(), of shape
      `[batch_size, max_time2, compare_dim]`
-    :param length1: lengths of first dim,
+    :param length1: lengths of first sentence
+    :param length2: lengths of second sentence
     :param mapper_num_layers: size of hidden layers for
      final result mapper, where mapper_num_layers[-1]
      should be the number of category
