@@ -33,7 +33,7 @@ class ReverseData(PairSequenceData):
 
         self.train_data = self.make_data(num_train, num_symbols, length,
                                          tf_ratio=0.5)
-        self.val_data = self.make_data(num_train, num_symbols, length,
+        self.val_data = self.make_data(num_val, num_symbols, length,
                                        tf_ratio=0.8)
 
     def load(self):
