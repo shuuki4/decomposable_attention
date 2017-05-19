@@ -40,7 +40,8 @@ class DecomposableAttentionModel:
 
         tf.summary.histogram('attention_weight', attention_weights)
         tf.summary.image('attention_viz',
-                         tf.expand_dims(attention_weights, -1))
+                         tf.expand_dims(attention_weights, -1) * 255.0 / \
+                         (tf.reduce_max(attention_weights) - tf.reduce_min(attention_weights)))
 
         compare_dim = self.config['rnn']['state_size'] * 2
         num_category = self.config['data']['num_category']
@@ -155,9 +156,8 @@ class DecomposableAttentionModel:
                     name='cross_entropy'
                 )
             )
-            #l2_loss = tf.add_n(
-            #    tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
-            l2_loss = 0.0
+            l2_loss = tf.add_n(
+                tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
             loss = cross_entropy + l2_loss
 
             tf.summary.scalar('total_loss', loss)

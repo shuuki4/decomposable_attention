@@ -4,7 +4,7 @@ from ops.layer_util import MLP
 
 def attend(input1, input2,
            attention_mapper_num_layers=None,
-           attention_mapper_l2_coef=0.01,
+           attention_mapper_l2_coef=0.003,
            is_training=True):
     """
     :param input1: first sentence representation of shape
@@ -53,7 +53,7 @@ def attend(input1, input2,
 
 def compare(orig_input1, orig_input2, attend_input1, attend_input2,
             mapper_num_layers=None,
-            mapper_l2_coef=0.01,
+            mapper_l2_coef=0.003,
             is_training=True):
     """
     :param orig_input1: original first sentence representation of shape
@@ -99,7 +99,7 @@ def compare(orig_input1, orig_input2, attend_input1, attend_input2,
 
 def aggregate(compare1, compare2,
               mapper_num_layers,
-              mapper_l2_coef=0.01,
+              mapper_l2_coef=0.003,
               is_training=True):
     """
     :param compare1: compare result1 from compare(), of shape
