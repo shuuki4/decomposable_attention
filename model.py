@@ -49,6 +49,7 @@ class DecomposableAttentionModel:
         with tf.name_scope('aggregate'):
             result = decom_ops.aggregate(
                 compare1, compare2,
+                sentence1_lengths, sentence2_lengths,
                 mapper_num_layers=[compare_dim//2, num_category],
                 is_training=is_training
             )

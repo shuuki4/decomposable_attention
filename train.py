@@ -71,9 +71,9 @@ def main(argv=None):
                 run_results = sess.run(run_dict, feed_dict)
 
                 if (step + 1) % log_step == 0:
-                    log.info("Step {cur_step:6d} / {all_step:6d} ... Loss: {loss:.5f}"
+                    log.info("Step {cur_step:6d} (Epoch {float_epoch:6.3f}) ... Loss: {loss:.5f}"
                              .format(cur_step=step+1,
-                                     all_step=steps_in_epoch,
+                                     float_epoch=float(step+1)/steps_in_epoch,
                                      loss=run_results['loss']))
 
                     interpret_result(data_dict['sentence1_inputs'],

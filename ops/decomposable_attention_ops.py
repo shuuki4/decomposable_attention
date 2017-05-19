@@ -98,6 +98,7 @@ def compare(orig_input1, orig_input2, attend_input1, attend_input2,
 
 
 def aggregate(compare1, compare2,
+              length1, length2,
               mapper_num_layers,
               mapper_l2_coef=0.003,
               is_training=True):
@@ -106,6 +107,7 @@ def aggregate(compare1, compare2,
       '[batch_size, max_time1, compare_dim]`
     :param compare2: compare result2 from compare(), of shape
      `[batch_size, max_time2, compare_dim]`
+    :param length1: lengths of first dim,
     :param mapper_num_layers: size of hidden layers for
      final result mapper, where mapper_num_layers[-1]
      should be the number of category
@@ -115,8 +117,19 @@ def aggregate(compare1, compare2,
     :return: result: final logit tensor
     """
 
-    compare1_sum = tf.reduce_sum(compare1, 1)
-    compare2_sum = tf.reduce_sum(compare2, 1)
+    sequence_mask1 = tf.expand_dims(
+        tf.sequence_mask(
+            length1, maxlen=tf.shape(compare1)[1], dtype=tf.float32),
+        dim=-1)
+    sequence_mask2 = tf.expand_dims(
+        tf.sequence_mask(
+            length2, maxlen=tf.shape(compare2)[1], dtype=tf.float32),
+        dim=-1)
+    masked_compare1 = sequence_mask1 * compare1
+    masked_compare2 = sequence_mask2 * compare2
+
+    compare1_sum = tf.reduce_sum(masked_compare1, 1)
+    compare2_sum = tf.reduce_sum(masked_compare2, 1)
 
     mapper = MLP(
         mapper_num_layers,
