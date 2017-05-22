@@ -58,9 +58,13 @@ class DecomposableAttentionModel:
             tf.summary.histogram('attention_weight_1', att_weights1)
             tf.summary.histogram('attention_weight_2', att_weights2)
             tf.summary.image('attention_viz_1',
-                             tf.expand_dims(att_weights1, -1) * 255.0)
+                             tf.cast(
+                                 tf.expand_dims(att_weights1, -1) * 255.0,
+                                 dtype=tf.uint8))
             tf.summary.image('attention_viz_2',
-                             tf.expand_dims(att_weights2, -1) * 255.0)
+                             tf.cast(
+                                 tf.expand_dims(att_weights2, -1) * 255.0,
+                                 dtype=tf.uint8))
 
         self.loss = self._build_loss(result, labels)
         self.inference = tf.argmax(tf.nn.softmax(result), axis=-1)
@@ -184,6 +188,8 @@ class DecomposableAttentionModel:
 
             train_variables = tf.trainable_variables()
             grads_vars = opt.compute_gradients(loss, train_variables)
+            for i, (grad, var) in enumerate(grads_vars):
+                grads_vars[i] = (tf.clip_by_norm(grad, 1.0), var)
             apply_gradient_op = opt.apply_gradients(grads_vars, global_step=train_step)
             with tf.control_dependencies([apply_gradient_op]):
                 train_op = tf.no_op(name='train_step')

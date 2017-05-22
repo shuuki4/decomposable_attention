@@ -13,7 +13,8 @@ def _masked_softmax(logits, lengths):
         dim=1
     )
 
-    masked_logit_exp = tf.exp(logits) * sequence_mask
+    max_logits = tf.reduce_max(logits, axis=-1, keep_dims=True)
+    masked_logit_exp = tf.exp(logits - max_logits) * sequence_mask
     logit_sum = tf.reduce_sum(masked_logit_exp, axis=-1, keep_dims=True)
 
     probs = masked_logit_exp / logit_sum
