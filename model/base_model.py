@@ -12,7 +12,7 @@ class BaseModel:
 
         self._build_graph()
 
-    def _build_graph(self, config):
+    def _build_graph(self):
         raise NotImplementedError
 
     def make_feed_dict(self, data_dict, is_training=True):

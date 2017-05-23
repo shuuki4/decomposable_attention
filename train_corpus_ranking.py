@@ -35,7 +35,8 @@ def interpret_result(input_ids, pos_ids, neg_ids, pos_infer, neg_infer, dataset,
 def eval_result(pos_infers, neg_infers):
     assert len(pos_infers) == len(neg_infers)
 
-    accuracy = np.sum((pos_infers > neg_infers).astype(np.float32)) / len(pos_infers)
+    accuracy = np.sum((pos_infers > neg_infers).astype(np.float32)) * 100.0 / \
+                   len(pos_infers)
     avg_delta = np.mean(pos_infers - neg_infers)
     return accuracy, avg_delta
 

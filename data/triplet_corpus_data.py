@@ -1,6 +1,7 @@
 import os
 import pickle
 import random
+from random import shuffle
 from collections import Counter, defaultdict
 
 from data.triplet_sequence_data import TripletSequenceData
@@ -51,51 +52,52 @@ class TripletCorpusData(TripletSequenceData):
                 data.append((send, recv))
         return data
 
+    # supports on-the-fly negative sampling for training
+    def train_datas(self, batch_size=16, random=True,
+                    rebuild_negative=True):
+        assert self.initialized, "Dataset is not initialized!"
+        if rebuild_negative:
+            send_recvs = [(send, recv_pos) for send, recv_pos, _ in self.train_data]
+            negative_recvs = self._sample_negative(send_recvs)
+            self.train_data = [(send, recv_pos, recv_neg) for (send, recv_pos), recv_neg
+                               in zip(send_recvs, negative_recvs)]
+        return self._data_iterator(self.train_data, batch_size, random)
+
+    def _sample_negative(self, send_recvs):
+        mapper = defaultdict(list)
+        recvs = [recv for _, recv in send_recvs]
+        for recv_idx, recv in enumerate(recvs):
+            for token_idx in recv:
+                mapper[token_idx].append(recv_idx)
+
+        negative_recvs = []
+        for send, recv_pos in send_recvs:
+            while True:
+                try:
+                    token_idx = random.choice(send)
+                    negative_recv_idx = random.choice(mapper[token_idx])
+                    recv_neg = recvs[negative_recv_idx]
+                except IndexError:
+                    continue
+                if recv_pos != recv_neg:
+                    break
+            negative_recvs.append(recv_neg)
+
+        return negative_recvs
+
     def _build_negative(self, all_data, train_val_ratio=0.9):
         random.shuffle(all_data)
         train_val_cut = int(train_val_ratio * len(all_data))
         train_data = all_data[:train_val_cut]
         val_data = all_data[train_val_cut:]
 
-        train_recvs = [recv for _, recv in train_data]
-        val_recvs = [recv for _, recv in val_data]
+        train_negative_recvs = self._sample_negative(train_data)
+        val_negative_recvs = self._sample_negative(val_data)
 
-        # build negative data from random recv
-        # that has common vocab with send
-        train_recv_mapper = defaultdict(lambda: list())
-        val_recv_mapper = defaultdict(lambda: list())
-        for recv_idx, recv in enumerate(train_recvs):
-            for token_idx in recv:
-                train_recv_mapper[token_idx].append(recv_idx)
-        for recv_idx, recv in enumerate(val_recvs):
-            for token_idx in recv:
-                val_recv_mapper[token_idx].append(recv_idx)
-
-        for i, (send, recv_pos) in enumerate(train_data):
-            while True:
-                try:
-                    token_idx = random.choice(send)
-                    negative_recv_idx = random.choice(
-                        train_recv_mapper[token_idx])
-                    recv_neg = train_recvs[negative_recv_idx]
-                except IndexError:
-                    continue
-                if recv_pos != recv_neg:
-                    break
-            train_data[i] = (send, recv_pos, recv_neg)
-
-        for i, (send, recv_pos) in enumerate(val_data):
-            while True:
-                try:
-                    token_idx = random.choice(send)
-                    negative_recv_idx = random.choice(
-                        val_recv_mapper[token_idx])
-                    recv_neg = val_recvs[negative_recv_idx]
-                except IndexError:
-                    continue
-                if recv_pos != recv_neg:
-                    break
-            val_data[i] = (send, recv_pos, recv_neg)
+        train_data = [(send, recv_pos, recv_neg) for (send, recv_pos), recv_neg
+                      in zip(train_data, train_negative_recvs)]
+        val_data = [(send, recv_pos, recv_neg) for (send, recv_pos), recv_neg
+                    in zip(val_data, val_negative_recvs)]
 
         return train_data, val_data
 
