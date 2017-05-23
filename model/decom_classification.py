@@ -53,16 +53,12 @@ class DecomposableAttentionClassificationModel(BaseModel):
             )
 
         with tf.name_scope('summary_viz'):
-            tf.summary.histogram('attention_weight_1', att_weights1)
-            tf.summary.histogram('attention_weight_2', att_weights2)
-            tf.summary.image('attention_viz_1',
-                             tf.cast(
-                                 tf.expand_dims(att_weights1, -1) * 255.0,
-                                 dtype=tf.uint8))
-            tf.summary.image('attention_viz_2',
-                             tf.cast(
-                                 tf.expand_dims(att_weights2, -1) * 255.0,
-                                 dtype=tf.uint8))
+            attentions = [
+                (att_weights1, 'attention_weight1', sentence2_lengths),
+                (att_weights2, 'attention_weight2', sentence1_lengths)
+            ]
+            for attention_info in attentions:
+                self._build_attention_viz(*attention_info)
 
         self.loss = self._build_loss(result, labels)
         self.inference_probs = tf.nn.softmax(result)
@@ -185,3 +181,18 @@ class DecomposableAttentionClassificationModel(BaseModel):
                 train_op = tf.no_op(name='train_step')
 
         return train_step, train_op
+
+    @staticmethod
+    def _build_attention_viz(att_weight, att_name, lengths):
+        mask = tf.expand_dims(
+            tf.sequence_mask(lengths,
+                             maxlen=tf.shape(att_weight)[1],
+                             dtype=tf.float32),
+            axis=-1)
+        att_weight = att_weight * mask
+
+        tf.summary.histogram(att_name, att_weight)
+        tf.summary.image(att_name + '_viz',
+                         tf.cast(
+                             tf.expand_dims(att_weight, -1) * 255.0,
+                             dtype=tf.uint8))

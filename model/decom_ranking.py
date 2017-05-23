@@ -74,12 +74,14 @@ class DecomposableAttentionRankingModel(BaseModel):
         with tf.name_scope('summary'):
             tf.summary.histogram('pos_result', pos_result)
             tf.summary.histogram('neg_result', neg_result)
-            attentions = [(pos_att_weights1, 'pos_att_weight1'),
-                          (pos_att_weights2, 'pos_att_weight2'),
-                          (neg_att_weights1, 'neg_att_weight1'),
-                          (neg_att_weights2, 'neg_att_weight2')]
-            for att_weight, att_name in attentions:
-                self._build_attention_viz(att_weight, att_name)
+            attentions = [
+                (pos_att_weights1, 'pos_att_weight1', sentence2_pos_lengths),
+                (pos_att_weights2, 'pos_att_weight2', sentence1_lengths),
+                (neg_att_weights1, 'neg_att_weight1', sentence2_neg_lengths),
+                (neg_att_weights2, 'neg_att_weight2', sentence1_lengths)
+            ]
+            for attention_info in attentions:
+                self._build_attention_viz(*attention_info)
 
         self.pos_inference = pos_result
         self.neg_inference = neg_result
@@ -175,7 +177,14 @@ class DecomposableAttentionRankingModel(BaseModel):
                sentence1_rnned, sentence2_pos_rnned, sentence2_neg_rnned
 
     @staticmethod
-    def _build_attention_viz(att_weight, att_name):
+    def _build_attention_viz(att_weight, att_name, lengths):
+        mask = tf.expand_dims(
+            tf.sequence_mask(lengths,
+                             maxlen=tf.shape(att_weight)[1],
+                             dtype=tf.float32),
+            axis=-1)
+        att_weight = att_weight * mask
+
         tf.summary.histogram(att_name, att_weight)
         tf.summary.image(att_name + '_viz',
                          tf.cast(
