@@ -1,3 +1,5 @@
+import json
+
 
 class Config:
 
@@ -38,3 +40,8 @@ class Config:
                 return self.config[keys[0]][keys[1]]
             except KeyError as e:
                 raise KeyError('Wrong key {} for config'.format(keys))
+
+    def save(self, path):
+        with open(path, 'w') as f:
+            json.dump(self.config, f)
+

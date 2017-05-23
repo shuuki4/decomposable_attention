@@ -6,7 +6,6 @@ def _masked_softmax(logits, lengths):
     """
     Softmax on last axis with proper mask
     """
-    eps = 1e-12
     sequence_mask = tf.expand_dims(
         tf.sequence_mask(
             lengths, maxlen=tf.shape(logits)[-1], dtype=tf.float32),
@@ -25,7 +24,8 @@ def attend(input1, input2,
            length1, length2,
            attention_mapper_num_layers=None,
            attention_mapper_l2_coef=0.003,
-           is_training=True):
+           is_training=True,
+           reuse=False):
     """
     :param input1: first sentence representation of shape
      `[batch_size, max_time1, embedding_dim]'
@@ -39,6 +39,7 @@ def attend(input1, input2,
      mapping MLP's L2 regularization
     :param is_training: Python boolean or tensor indicating
      if it is training or not
+    :param reuse: To reuse variable in this scope or not
     :return: (attend_output1, attend_output2, attention_weights)
     """
 
@@ -53,7 +54,8 @@ def attend(input1, input2,
         kernel_initializer=tf.contrib.layers.xavier_initializer(),
         kernel_regularizer=tf.contrib.layers.l2_regularizer(
             scale=attention_mapper_l2_coef),
-        name='attend_attention_mapper'
+        name='attend_attention_mapper',
+        reuse=reuse
     )
 
     att_map1 = attention_mapper.apply(input1, is_training=is_training)
@@ -75,7 +77,8 @@ def attend(input1, input2,
 def compare(orig_input1, orig_input2, attend_input1, attend_input2,
             mapper_num_layers=None,
             mapper_l2_coef=0.003,
-            is_training=True):
+            is_training=True,
+            reuse=False):
     """
     :param orig_input1: original first sentence representation of shape
      '[batch_size, max_time1, embedding_dim]
@@ -90,6 +93,7 @@ def compare(orig_input1, orig_input2, attend_input1, attend_input2,
     :param mapper_l2_coef: coefficient for mapper l2 regularization
     :param is_training: Python boolean or tensor indicating
      if it is training or not
+    :param reuse: To reuse variable in this scope or not
     :return: (compare1, compare2)
     """
 
@@ -105,7 +109,8 @@ def compare(orig_input1, orig_input2, attend_input1, attend_input2,
         kernel_initializer=tf.contrib.layers.xavier_initializer(),
         kernel_regularizer=tf.contrib.layers.l2_regularizer(
             scale=mapper_l2_coef),
-        name='compare_mapper'
+        name='compare_mapper',
+        reuse=reuse
     )
 
     compare1 = mapper.apply(
@@ -122,7 +127,8 @@ def aggregate(compare1, compare2,
               length1, length2,
               mapper_num_layers,
               mapper_l2_coef=0.003,
-              is_training=True):
+              is_training=True,
+              reuse=False):
     """
     :param compare1: compare result1 from compare(), of shape
       '[batch_size, max_time1, compare_dim]`
@@ -136,6 +142,7 @@ def aggregate(compare1, compare2,
     :param mapper_l2_coef: coef for mapper l2 regularization
     :param is_training: Python boolean or tensor indicating
      if it is training or not
+    :param reuse: To reuse variable in this scope or not
     :return: result: final logit tensor
     """
 
@@ -160,7 +167,8 @@ def aggregate(compare1, compare2,
         kernel_initializer=tf.contrib.layers.xavier_initializer(),
         kernel_regularizer=tf.contrib.layers.l2_regularizer(
             scale=mapper_l2_coef),
-        name='aggregate_mapper'
+        name='aggregate_mapper',
+        reuse=reuse
     )
     result = mapper.apply(
         tf.concat([compare1_sum, compare2_sum], 1),

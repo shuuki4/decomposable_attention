@@ -1,9 +1,10 @@
 import tensorflow as tf
 from ops import decomposable_attention_ops as decom_ops
+from model.base_model import BaseModel
 from tensorflow.contrib.rnn import GRUCell
 
 
-class DecomposableAttentionModel:
+class DecomposableAttentionClassificationModel(BaseModel):
     """
     Tensorflow model of sentence pair classification
     with decomposable attention model (A Decomposable Attention
@@ -12,10 +13,7 @@ class DecomposableAttentionModel:
     """
 
     def __init__(self, config):
-        self.config = config
-        self._inputs = {}
-
-        self._build_graph()
+        super(DecomposableAttentionClassificationModel, self).__init__(config)
 
     def _build_graph(self):
         with tf.name_scope('inputs'):
@@ -67,18 +65,10 @@ class DecomposableAttentionModel:
                                  dtype=tf.uint8))
 
         self.loss = self._build_loss(result, labels)
-        self.inference = tf.argmax(tf.nn.softmax(result), axis=-1)
+        self.inference_probs = tf.nn.softmax(result)
+        self.inference = tf.argmax(self.inference_probs, axis=-1)
         self.train_step, self.train_op = self._build_train_step(self.loss)
         self.summary_op = tf.summary.merge_all()
-
-    def make_feed_dict(self, data_dict, is_training=True):
-        feed_dict = {self._inputs['is_training']: is_training}
-        for key in data_dict.keys():
-            try:
-                feed_dict[self._inputs[key]] = data_dict[key]
-            except KeyError:
-                raise ValueError('Unexpected argument in input dictionary!')
-        return feed_dict
 
     def _build_inputs(self):
         self._inputs['sentence1_inputs'] = tf.placeholder(

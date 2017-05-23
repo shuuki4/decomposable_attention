@@ -2,16 +2,16 @@ import numpy as np
 from data.base_sequence_data import BaseSequenceData
 
 
-class PairSequenceData(BaseSequenceData):
+class TripletSequenceData(BaseSequenceData):
     """
     Pair sequence data class interface for
-    decomposable attention classification model
+    decomposable attention ranking model
     """
     def __init__(self):
         """
         Data format should be [(sequence1, sequence2, label)]
         """
-        super(PairSequenceData, self).__init__()
+        super(TripletSequenceData, self).__init__()
 
     def _next_batch(self, data, batch_idxs):
         """
@@ -23,27 +23,31 @@ class PairSequenceData(BaseSequenceData):
         def _normalize_length(_data, max_length):
             return _data + [self.PAD] * (max_length - len(_data))
 
-        seq1_data, seq1_lengths, seq2_data, seq2_lengths, labels = \
-            [], [], [], [], []
+        seq1_data, seq1_lengths, seq2_pos_data, \
+            seq2_pos_lengths, seq2_neg_data, seq2_neg_lengths = \
+            [], [], [], [], [], []
         for idx in batch_idxs:
-            seq1, seq2, _ = data[idx]
+            seq1, seq2_pos, seq2_neg = data[idx]
             seq1_lengths.append(len(seq1))
-            seq2_lengths.append(len(seq2))
+            seq2_pos_lengths.append(len(seq2_pos))
+            seq2_neg_lengths.append(len(seq2_neg))
 
         seq1_max_length = max(seq1_lengths)
-        seq2_max_length = max(seq2_lengths)
+        seq2_max_length = max(seq2_pos_lengths + seq2_neg_lengths)
+
         for idx in batch_idxs:
-            seq1, seq2, label = data[idx]
+            seq1, seq2_pos, seq2_neg = data[idx]
             seq1_data.append(_normalize_length(seq1, seq1_max_length))
-            seq2_data.append(_normalize_length(seq2, seq2_max_length))
-            labels.append(label)
+            seq2_pos_data.append(_normalize_length(seq2_pos, seq2_max_length))
+            seq2_neg_data.append(_normalize_length(seq2_neg, seq2_max_length))
 
         batch_data_dict = {
             'sentence1_inputs': np.asarray(seq1_data, dtype=np.int32),
             'sentence1_lengths': np.asarray(seq1_lengths, dtype=np.int32),
-            'sentence2_inputs': np.asarray(seq2_data, dtype=np.int32),
-            'sentence2_lengths': np.asarray(seq2_lengths, dtype=np.int32),
-            'labels': np.asarray(labels, dtype=np.int32)
+            'sentence2_pos_inputs': np.asarray(seq2_pos_data, dtype=np.int32),
+            'sentence2_pos_lengths': np.asarray(seq2_pos_lengths, dtype=np.int32),
+            'sentence2_neg_inputs': np.asarray(seq2_neg_data, dtype=np.int32),
+            'sentence2_neg_lengths': np.asarray(seq2_neg_lengths, dtype=np.int32),
         }
         return batch_data_dict
 
