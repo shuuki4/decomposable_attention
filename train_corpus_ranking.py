@@ -143,7 +143,7 @@ def main(argv=None):
                                   .format(accuracy, avg_delta))
                         eval_summary = tf.Summary(
                             value=[tf.Summary.Value(tag="val_accuracy", simple_value=accuracy),
-                                   tf.Sumamry.Value(tag="val_avg_delta", simple_value=avg_delta)])
+                                   tf.Summary.Value(tag="val_avg_delta", simple_value=avg_delta)])
 
                         summary_writer.add_summary(eval_summary, step+1)
                         summary_writer.flush()
