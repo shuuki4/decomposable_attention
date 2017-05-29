@@ -23,7 +23,7 @@ def _masked_softmax(logits, lengths):
 def attend(input1, input2,
            length1, length2,
            attention_mapper_num_layers=None,
-           attention_mapper_l2_coef=0.003,
+           attention_mapper_l2_coef=0.0,  # l2 coef in attention mapper kills attention
            is_training=True,
            reuse=False):
     """
@@ -76,7 +76,7 @@ def attend(input1, input2,
 
 def compare(orig_input1, orig_input2, attend_input1, attend_input2,
             mapper_num_layers=None,
-            mapper_l2_coef=0.003,
+            mapper_l2_coef=3e-4,
             is_training=True,
             reuse=False):
     """
@@ -126,7 +126,7 @@ def compare(orig_input1, orig_input2, attend_input1, attend_input2,
 def aggregate(compare1, compare2,
               length1, length2,
               mapper_num_layers,
-              mapper_l2_coef=0.003,
+              mapper_l2_coef=3e-4,
               is_training=True,
               reuse=False):
     """

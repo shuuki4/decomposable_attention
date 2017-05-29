@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 from math import floor
 import os
+from sklearn import metrics
 
 from model.decom_ranking import DecomposableAttentionRankingModel
 from config import Config
@@ -13,6 +14,7 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('data_path', '', """Path of pre-built data""")
 tf.app.flags.DEFINE_string('vocab_path', '', """Path of vocab""")
 tf.app.flags.DEFINE_string('train_dir', '', """Directory for train/save""")
+tf.app.flags.DEFINE_string('word_embedding_path', '', """Optional: Path for pretrained word embedding""")
 tf.app.flags.DEFINE_string('checkpoint_path', '', """Optional: Path for checkpoint to restore""")
 tf.app.flags.DEFINE_string('test_data_path', '', """Optional: Path for test data""")
 
@@ -41,10 +43,27 @@ def eval_result(pos_infers, neg_infers):
     return accuracy, avg_delta
 
 
+def test_result(inferences, labels):
+    ap = metrics.average_precision_score(labels, inferences)
+    r2 = metrics.r2_score(labels, inferences)
+    roc_auc = metrics.roc_auc_score(labels, inferences)
+    return ap, r2, roc_auc
+
+
+def interpret_test_result(input_ids, response_ids, inference, label, dataset, show=100):
+    for i in range(show):
+        input_sequence = dataset.interpret(input_ids[i], join_string=' ')
+        answer_sequence = dataset.interpret(response_ids[i], join_string=' ')
+
+        print('{} -> {} (Infer: {:.4f}, Label: {:.1f})'.format(
+            input_sequence, answer_sequence, inference[i], label[i]))
+
+
 def main(argv=None):
     data_path = FLAGS.data_path
     vocab_path = FLAGS.vocab_path
     train_dir = FLAGS.train_dir
+    word_embedding_path = FLAGS.word_embedding_path
     checkpoint_path = FLAGS.checkpoint_path
     test_data_path = FLAGS.test_data_path
 
@@ -55,10 +74,12 @@ def main(argv=None):
     dataset.load(data_path=data_path, vocab_path=vocab_path,
                  test_data_path=test_data_path)
 
+    word_embedding_path = word_embedding_path if word_embedding_path else None
     config = Config(num_words=dataset.num_symbols,
                     num_category=dataset.num_category,
-                    word_embedding_dim=150, rnn_state_size=150,
-                    batch_size=256)
+                    word_embedding_dim=100, rnn_state_size=150,
+                    batch_size=256,
+                    pretrained_word_path=word_embedding_path)
     config.save(os.path.join(train_dir, 'config.json'))
 
     max_epoch = 30
@@ -70,8 +91,8 @@ def main(argv=None):
 
     summary_step = 500
     log_step = 2000
-    eval_step = 25000
-    #test_step = 50000
+    eval_step = 10000
+    test_step = 10000
     save_step = 50000
     max_step = max_epoch * steps_in_epoch
 
@@ -148,6 +169,36 @@ def main(argv=None):
 
                         summary_writer.add_summary(eval_summary, step+1)
                         summary_writer.flush()
+
+                    if (step + 1) % test_step == 0:
+                        inferences, labels = [], []
+                        for test_data_dict in dataset.test_datas(batch_size):
+                            feed_dict = model.make_feed_dict(test_data_dict, is_training=False)
+                            pos_inference = sess.run(model.pos_inference, feed_dict)
+                            inferences.append(pos_inference)
+                            labels.append(np.array(test_data_dict['labels'], dtype=np.float32))
+
+                        inferences = np.concatenate(inferences)
+                        inferences = (inferences + 1.0) / 2.0
+                        labels = np.concatenate(labels)
+                        ap, r2, roc_auc = test_result(inferences, labels)
+                        log.infov("AP: {:.4f}, R^2: {:.4f}, ROC-AUC: {:.4f}"
+                                  .format(ap, r2, roc_auc))
+                        test_summary = tf.Summary(
+                            value=[tf.Summary.Value(tag="test/ap", simple_value=ap),
+                                   tf.Summary.Value(tag="test/r2", simple_value=r2),
+                                   tf.Summary.Value(tag="test/roc_auc", simple_value=roc_auc)])
+                        summary_writer.add_summary(test_summary, step+1)
+                        summary_writer.flush()
+
+                        """
+                        to_show = 100
+                        first_test_data_dict = dataset.test_data_by_idx(0, to_show)
+                        interpret_test_result(
+                            first_test_data_dict['sentence1_inputs'],
+                            first_test_data_dict['sentence2_pos_inputs'],
+                            inferences, labels, dataset, show=to_show)
+                        """
 
                     if step + 1 > max_step:
                         raise TrainingDoneException

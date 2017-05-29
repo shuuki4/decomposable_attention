@@ -19,6 +19,7 @@ class DecomposableAttentionClassificationModel(BaseModel):
         with tf.name_scope('inputs'):
             sentence1, sentence1_lengths, sentence2, \
                 sentence2_lengths, labels, is_training = self._build_inputs()
+        self._word_embedding = self.make_word_embedding()
 
         sentence1_embed, sentence2_embed, sentence1_rnned, sentence2_rnned = \
             self._build_rnn_encoder(
@@ -106,15 +107,8 @@ class DecomposableAttentionClassificationModel(BaseModel):
                            sentence1_lengths, sentence2_lengths):
 
         with tf.variable_scope('word_embedding'):
-            word_embedding = tf.get_variable(
-                name="word_embedding",
-                shape=(self.config['data']['num_word'], self.config['word']['embedding_dim']),
-                initializer=tf.contrib.layers.xavier_initializer(),
-                dtype=tf.float32
-            )
-
-            sentence1_embedding = tf.nn.embedding_lookup(word_embedding, sentence1)
-            sentence2_embedding = tf.nn.embedding_lookup(word_embedding, sentence2)
+            sentence1_embedding = tf.nn.embedding_lookup(self._word_embedding, sentence1)
+            sentence2_embedding = tf.nn.embedding_lookup(self._word_embedding, sentence2)
 
         with tf.variable_scope('rnn'):
             def _run_birnn(fw_cell, bw_cell, inputs, lengths):
@@ -155,9 +149,8 @@ class DecomposableAttentionClassificationModel(BaseModel):
                     name='cross_entropy'
                 )
             )
-            #l2_loss = tf.add_n(
-            #    tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
-            l2_loss = 0.0
+            l2_loss = tf.add_n(
+                tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
             loss = cross_entropy + l2_loss
 
             tf.summary.scalar('total_loss', loss)

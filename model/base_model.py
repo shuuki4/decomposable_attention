@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 
 class BaseModel:
@@ -15,13 +16,28 @@ class BaseModel:
     def _build_graph(self):
         raise NotImplementedError
 
+    def make_word_embedding(self):
+        if self.config['word']['pretrained_word_path']:
+            initializer = np.load(self.config['word']['pretrained_word_path'])
+        else:
+            initializer = tf.contrib.layers.xavier_initializer()
+
+        with tf.variable_scope('word_embedding'):
+            word_embedding = tf.get_variable(
+                name="word_embedding",
+                shape=(self.config['data']['num_word'], self.config['word']['embedding_dim']),
+                initializer=initializer,
+                dtype=tf.float32
+            )
+        return word_embedding
+
     def make_feed_dict(self, data_dict, is_training=True):
         feed_dict = {self._inputs['is_training']: is_training}
         for key in data_dict.keys():
             try:
                 feed_dict[self._inputs[key]] = data_dict[key]
             except KeyError:
-                raise ValueError('Unexpected argument in input dictionary!')
+                continue
         return feed_dict
 
     def _build_train_step(self, loss):

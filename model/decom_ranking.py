@@ -16,6 +16,8 @@ class DecomposableAttentionRankingModel(BaseModel):
                 sentence2_neg, sentence2_neg_lengths,\
                 is_training = self._build_inputs()
 
+        self._word_embedding = self.make_word_embedding()
+
         with tf.name_scope('rnn_encode'):
             sentence1_embed, sentence2_pos_embed, sentence2_neg_embed, \
                 sentence1_rnned, sentence2_pos_rnned, sentence2_neg_rnned = \
@@ -134,16 +136,9 @@ class DecomposableAttentionRankingModel(BaseModel):
                            sentence1_lengths, sentence2_pos_lengths, sentence2_neg_lengths):
 
         with tf.variable_scope('word_embedding'):
-            word_embedding = tf.get_variable(
-                name="word_embedding",
-                shape=(self.config['data']['num_word'], self.config['word']['embedding_dim']),
-                initializer=tf.contrib.layers.xavier_initializer(),
-                dtype=tf.float32
-            )
-
-            sentence1_embedding = tf.nn.embedding_lookup(word_embedding, sentence1)
-            sentence2_pos_embedding = tf.nn.embedding_lookup(word_embedding, sentence2_pos)
-            sentence2_neg_embedding = tf.nn.embedding_lookup(word_embedding, sentence2_neg)
+            sentence1_embedding = tf.nn.embedding_lookup(self._word_embedding, sentence1)
+            sentence2_pos_embedding = tf.nn.embedding_lookup(self._word_embedding, sentence2_pos)
+            sentence2_neg_embedding = tf.nn.embedding_lookup(self._word_embedding, sentence2_neg)
 
         with tf.variable_scope('rnn'):
             def _run_birnn(fw_cell, bw_cell, inputs, lengths):
@@ -195,9 +190,8 @@ class DecomposableAttentionRankingModel(BaseModel):
     def _build_loss(pos_results, neg_results, margin=1.5):
         ranking_loss = tf.reduce_mean(
             tf.maximum(0.0, margin - pos_results + neg_results))
-        #l2_loss = tf.add_n(
-        #    tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
-        l2_loss = 0.0
+        l2_loss = tf.add_n(
+            tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
 
         total_loss = ranking_loss + l2_loss
 

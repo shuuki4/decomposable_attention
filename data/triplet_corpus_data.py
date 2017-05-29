@@ -29,8 +29,8 @@ class TripletCorpusData(TripletSequenceData):
         if send_counter.get(n_idx, 0) >= 3 or recv_counter.get(n_idx, 0) >= 3:
             return False
 
-        if len(send_counter & recv_counter) == 0:
-            return False
+        #if len(send_counter & recv_counter) == 0:
+        #    return False
 
         return True
 
@@ -70,17 +70,30 @@ class TripletCorpusData(TripletSequenceData):
             for token_idx in recv:
                 mapper[token_idx].append(recv_idx)
 
+        mapper = dict(mapper)
         negative_recvs = []
         for send, recv_pos in send_recvs:
+            cnt = 0
             while True:
                 try:
                     token_idx = random.choice(send)
+                    # pick hardest
+                    #lengths = []
+                    #for idx in send:
+                    #    if idx in mapper:
+                    #        length = len(mapper[idx])
+                    #        if length > 10:
+                    #            lengths.append((len(mapper[idx]), idx))
+                    #token_idx = min(lengths)[1]
                     negative_recv_idx = random.choice(mapper[token_idx])
                     recv_neg = recvs[negative_recv_idx]
-                except IndexError:
+                except (KeyError, IndexError):
                     continue
                 if recv_pos != recv_neg:
                     break
+                cnt += 1
+                if cnt > 100:
+                    print(cnt)
             negative_recvs.append(recv_neg)
 
         return negative_recvs
@@ -126,7 +139,7 @@ class TripletCorpusData(TripletSequenceData):
             }, f)
 
         self.symbols = self.vectorizer.idx2vocab
-        self.num_category = 2
+        self.num_category = 0
 
     def load(self, data_path=None, vocab_path=None, test_data_path=None):
         assert data_path is not None and vocab_path is not None
@@ -139,13 +152,16 @@ class TripletCorpusData(TripletSequenceData):
 
         if test_data_path:
             with open(test_data_path, 'r', encoding='utf-8') as f:
+                labels = []
                 for line in f:
-                    sent1, sent2_pos, sent2_neg = line.split('\t')
+                    sent1, sent2_pos, label = line.split('\t')
                     self.test_data.append(
                         (self.vectorizer.encode(sent1),
                          self.vectorizer.encode(sent2_pos),
-                         self.vectorizer.encode(sent2_neg)))
+                         self.vectorizer.encode('UNK')))
+                    labels.append(int(label))
+            self.test_label = labels
 
         self.symbols = self.vectorizer.idx2vocab
-        self.num_category = 2
+        self.num_category = 0
 

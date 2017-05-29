@@ -3,7 +3,7 @@ class Vectorizer:
 
     UNK = 1
     
-    def __init__(self, top_n_vocab=20000):
+    def __init__(self, top_n_vocab=50000):
         self.top_n_vocab = top_n_vocab
         self._idx2vocab = ['PAD', 'UNK']
         self._vocab2idx = {}

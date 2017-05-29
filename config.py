@@ -4,8 +4,9 @@ import json
 class Config:
 
     def __init__(self, num_words, num_category,
-                 learning_rate=0.0001, batch_size=128,
-                 word_embedding_dim=100, rnn_state_size=150):
+                 learning_rate=1e-4, batch_size=128,
+                 word_embedding_dim=100, pretrained_word_path=None,
+                 rnn_state_size=150):
 
         self.config = dict()
 
@@ -22,6 +23,7 @@ class Config:
         # word config
         self.config['word'] = word_config = dict()
         word_config['embedding_dim'] = word_embedding_dim
+        word_config['pretrained_word_path'] = pretrained_word_path
 
         # rnn config
         self.config['rnn'] = encoder_config = dict()
