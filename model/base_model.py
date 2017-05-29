@@ -17,17 +17,25 @@ class BaseModel:
         raise NotImplementedError
 
     def make_word_embedding(self):
+        embedding_kwargs = {}
+        expected_shape = (self.config['data']['num_word'], self.config['word']['embedding_dim'])
+
         if self.config['word']['pretrained_word_path']:
             initializer = np.load(self.config['word']['pretrained_word_path'])
+            assert (initializer.shape == expected_shape),\
+                'Wrong shape for pretrained word array, shape should be {} but {}'.format(
+                    expected_shape, initializer.shape)
+            initializer = tf.cast(initializer, tf.float32)
         else:
             initializer = tf.contrib.layers.xavier_initializer()
+            embedding_kwargs['shape'] = expected_shape
 
         with tf.variable_scope('word_embedding'):
             word_embedding = tf.get_variable(
                 name="word_embedding",
-                shape=(self.config['data']['num_word'], self.config['word']['embedding_dim']),
                 initializer=initializer,
-                dtype=tf.float32
+                dtype=tf.float32,
+                **embedding_kwargs
             )
         return word_embedding
 
